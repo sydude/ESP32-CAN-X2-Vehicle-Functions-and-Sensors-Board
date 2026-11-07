@@ -4,13 +4,14 @@
 #include "esp_twai_onchip.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include <atomic>
 
 namespace can_capture {
 namespace {
 constexpr unsigned kQueueDepth = 128;
 QueueHandle_t rx_queue = nullptr;
 twai_node_handle_t node = nullptr;
-volatile uint32_t queue_drops = 0;
+std::atomic<uint32_t> queue_drops{0};
 
 bool on_rx(twai_node_handle_t handle, const twai_rx_done_event_data_t*, void*) {
     uint8_t bytes[8] = {};
@@ -30,7 +31,7 @@ bool on_rx(twai_node_handle_t handle, const twai_rx_done_event_data_t*, void*) {
 
     BaseType_t higher_priority_woken = pdFALSE;
     if (xQueueSendFromISR(rx_queue, &frame, &higher_priority_woken) != pdTRUE) {
-        ++queue_drops;
+        queue_drops.fetch_add(1, std::memory_order_relaxed);
     }
     return higher_priority_woken == pdTRUE;
 }
@@ -63,7 +64,7 @@ bool receive(haltech::Frame& frame, uint32_t timeout_ms) {
 
 Stats stats() {
     Stats out = {};
-    out.dropped_queue = queue_drops;
+    out.dropped_queue = queue_drops.load(std::memory_order_relaxed);
     if (!node) return out;
     twai_node_status_t status = {};
     twai_node_record_t record = {};
