@@ -1,0 +1,3 @@
+[submodule "Vendors/ESP32-CAN-X2"]
+	path = Vendors/ESP32-CAN-X2
+	url = https://github.com/autosportlabs/ESP32-CAN-X2.git
