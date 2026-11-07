@@ -40,7 +40,7 @@ Gear enumeration: 1–10 = forward gear; 0 = Neutral; -1 = Reverse; -2 = Park; -
 
 **Important:** selector position and actual gear are two different channels; never assert that they must equal each other. Compare the **selector in 0x370** to the **selector in 0x470**, and likewise compare the gear in 0x370 to gear in 0x470. The monitor flags only discrepancies persisting at least 300 ms, with both frames recently received, to avoid false alerts during shifting or differing frame arrival times.
 
-The program prints trim and gear changes; vehicle speed only when changed and at most 1 Hz; receive counters and CAN status every 5 seconds. After a previously seen gear ID has been absent over 250 ms, it warns at summary time. Haltech's listed broadcast frequencies are nominal, not guaranteed.
+The program prints trim and gear changes; vehicle speed only when changed and at most 1 Hz; receive counters and CAN status every 5 seconds. After a previously seen gear ID has been absent over 250 ms, or rotary trims over 650 ms, it warns at summary time. Haltech's listed broadcast frequencies are nominal, not guaranteed.
 
 ## Synthetic vectors
 

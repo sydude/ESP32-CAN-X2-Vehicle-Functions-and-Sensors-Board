@@ -34,6 +34,9 @@ int main() {
     assert(d.selector == -1 && d.gear == -1);
     assert(decode(test_frame(0x370, drive), d) == DecodeStatus::Ok);
     assert(d.selector == -4 && d.gear == 3); // Legitimately different fields.
+    const uint8_t boundaries[] = {0, 0, 0, 0, 0x80, 0x7F, 0, 0};
+    assert(decode(test_frame(0x3E4, boundaries), d) == DecodeStatus::Ok);
+    assert(d.trim[0] == -128 && d.trim[1] == 127 && d.trim[2] == 0);
     auto bad = test_frame(0x470, gears);
     bad.len = 7;
     assert(decode(bad, d) == DecodeStatus::BadLength);

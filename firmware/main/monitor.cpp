@@ -24,6 +24,7 @@ struct State {
 };
 State combined, separate;
 bool trims_seen = false;
+int64_t last_trims_us = 0;
 int8_t trims[3] = {};
 bool speed_seen = false;
 uint16_t latest_speed = 0;
@@ -84,6 +85,7 @@ void ingest(const haltech::Frame& frame) {
                 trims[0] != decoded.trim[0] || trims[1] != decoded.trim[1] ||
                 trims[2] != decoded.trim[2];
             trims_seen = true;
+            last_trims_us = now;
             for (int i = 0; i < 3; ++i) trims[i] = decoded.trim[i];
             if (changed) ESP_LOGI(kTag, "Rotary trims: %d, %d, %d (raw signed)",
                 trims[0], trims[1], trims[2]);
@@ -123,6 +125,9 @@ void poll() {
         static_cast<unsigned long>(stats.bus_errors),
         stats.rx_error_counter, stats.error_state);
 
+    if (trims_seen && now - last_trims_us > 650000) {
+        ESP_LOGW(kTag, "No fresh 0x3E4 rotary-trim message for >650ms");
+    }
     const State* tracked[] = {&combined, &separate};
     const char* labels[] = {"0x370", "0x470"};
     for (int i = 0; i < 2; ++i) {
