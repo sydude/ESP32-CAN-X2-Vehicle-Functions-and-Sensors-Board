@@ -1,0 +1,14 @@
+menu "ESP32-CAN-X2 diagnostics"
+    choice CANX2_MODE
+        prompt "CAN diagnostic source"
+        default CANX2_MODE_LIVE
+        config CANX2_MODE_LIVE
+            bool "Passive physical CAN1 (listen-only)"
+        config CANX2_MODE_SYNTHETIC
+            bool "Software-generated Haltech test frames (CAN1 disabled)"
+    endchoice
+
+    config CANX2_RAW_LOG
+        bool "Print every physical CAN frame (high log volume)"
+        default n
+endmenu

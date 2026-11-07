@@ -1,22 +1,21 @@
 **/preview-build/
 **/preview-bin/
 **/build/
-
-# KiCad local/user-specific files
-*.kicad_prl
-*.kicad_pro-bak
-~*.lck
-
-# Archives
-*.zip
-
-#Mac specific
+**/build-host/
+**/managed_components/
+**/.pio/
+**/sdkconfig
+**/sdkconfig.old
+**/dependencies.lock
+# IDE and host environment
+.vscode/.browse.c_cpp.db*
 .DS_Store
 .AppleDouble
 .LSOverride
-.history
-
-# ESP-IDF downloaded dependencies
-**/managed_components/
-
-**/build-host/
+.history/
+# KiCad local files
+*.kicad_prl
+*.kicad_pro-bak
+~*.lck
+# Untracked archives
+*.zip
