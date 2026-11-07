@@ -19,3 +19,6 @@
 ~*.lck
 # Untracked archives
 *.zip
+
+# Local VS Code ESP-IDF configuration
+.vscode/settings.json
