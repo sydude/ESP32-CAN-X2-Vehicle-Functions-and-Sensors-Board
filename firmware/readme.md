@@ -22,7 +22,7 @@ For a hardware-free decoder check:
 - **Receive-only (default).** CAN1 runs in TWAI normal mode on GPIO6 RX and GPIO7 TX at **1 Mbit/s**. The controller ACKs valid CAN frames in hardware. Application frame transmission is disabled.
 - **Receive plus GearEcho.** Serial control is enabled by default for physical CAN1 with UART or USB Serial/JTAG as the primary console. The firmware starts receive-only. Send `gear-echo on` followed by Enter to enable the echo and `gear-echo off` followed by Enter to stop new echoes. Reset also returns to receive-only. For a saved configuration that disabled serial control, enable **Allow serial control of the 0x650 GearEcho diagnostic** under **ESP32-CAN-X2 diagnostics** in `idf.py menuconfig` once.
 - **Synthetic.** Select **Software-generated** under **CAN diagnostic source**. The monitor decodes predefined messages with the CAN controller disabled.
-- **Raw logging.** An independent menuconfig option logs complete frame data. The monitor decodes three selected IDs from unfiltered CAN1 reception.
+- **Raw logging.** An independent menuconfig option logs complete frame data. The monitor decodes four selected IDs from unfiltered CAN1 reception.
 
 Changes in menuconfig take effect when the firmware is rebuilt and flashed. The serial commands switch between the two live modes without reflashing.
 
@@ -58,6 +58,7 @@ The transmitter skips unknown and out-of-range gear codes and uses the receive t
 - 0x3E4: 00 00 00 00 03 FE 07 00 -> trims +3, -2, +7
 - 0x370: 00 00 03 03 00 00 00 00 -> selector 3, gear 3
 - 0x471: 00 00 01 59 00 00 00 00 -> accelerator pedal 34.5% (assuming x10)
+- 0x471: 00 00 03 E8 00 00 00 00 -> accelerator pedal 100.0% (assuming x10)
 - 0x470: 03 E8 03 E8 03 E8 03 03 -> selector 3, gear 3
 - 0x470: 03 E8 03 E8 03 E8 00 00 -> Neutral, Neutral
 - 0x470: 03 E8 03 E8 03 E8 FF FF -> Reverse, Reverse
