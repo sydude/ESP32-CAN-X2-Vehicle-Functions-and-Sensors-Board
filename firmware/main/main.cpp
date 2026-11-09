@@ -51,18 +51,30 @@ void run_synthetic() {
 
 extern "C" void app_main(void) {
     ESP_LOGI(kTag, "ESP32-CAN-X2 vehicle firmware | IDF %s", esp_get_idf_version());
-    ESP_LOGI(kTag, "CAN1 bitrate=%d, RX=%d TX=%d | CAN2 deferred",
+    ESP_LOGI(kTag, "CAN1 bitrate=%d, RX=%d TX=%d | CAN2 unused",
         board::can1_bitrate, board::can1_rx, board::can1_tx);
 #if CONFIG_CANX2_MODE_SYNTHETIC
     run_synthetic();
 #else
-    ESP_LOGW(kTag, "LIVE PASSIVE CAN1: listen-only, never transmits/ACKs");
+    ESP_LOGI(kTag, "CAN1 normal mode, hardware ACK enabled | GearEcho %s",
+#if CONFIG_CANX2_GEAR_ECHO
+        "enabled"
+#else
+        "disabled"
+#endif
+    );
     ESP_ERROR_CHECK(can_capture::start());
 #endif
     while (true) {
 #if CONFIG_CANX2_MODE_LIVE
         haltech::Frame frame = {};
-        if (can_capture::receive(frame, 100)) monitor::ingest(frame);
+        constexpr uint32_t kReceiveWaitMs =
+#if CONFIG_CANX2_GEAR_ECHO
+            10;
+#else
+            100;
+#endif
+        if (can_capture::receive(frame, kReceiveWaitMs)) monitor::ingest(frame);
 #else
         vTaskDelay(pdMS_TO_TICKS(100));
 #endif

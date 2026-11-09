@@ -1,4 +1,4 @@
-name: ESP-IDF 6.1 build and decoder tests
+name: ESP-IDF 6.1 build and CAN tests
 
 on:
   push:
@@ -10,12 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Native decoder vectors
+      - name: Native decoder and GearEcho vectors
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror -I firmware/main firmware/main/haltech_protocol.cpp firmware/tests/test_protocol.cpp -o /tmp/test_protocol
           /tmp/test_protocol
 
   esp32s3:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [receive-only, gear-echo, synthetic]
     runs-on: ubuntu-latest
     container: espressif/idf:v6.1
     steps:
@@ -25,5 +29,18 @@ jobs:
         shell: bash
         run: |
           source /opt/esp/idf/export.sh
-          idf.py set-target esp32s3
+          case "${{ matrix.mode }}" in
+            receive-only) : > ci-mode.defaults ;;
+            gear-echo) printf '%s\n' 'CONFIG_CANX2_GEAR_ECHO=y' > ci-mode.defaults ;;
+            synthetic) printf '%s\n' '# CONFIG_CANX2_MODE_LIVE is not set' 'CONFIG_CANX2_MODE_SYNTHETIC=y' > ci-mode.defaults ;;
+          esac
+          idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;ci-mode.defaults' set-target esp32s3
+          grep -qx 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' sdkconfig
+          case "${{ matrix.mode }}" in
+            receive-only)
+              grep -qx 'CONFIG_CANX2_MODE_LIVE=y' sdkconfig
+              grep -qx '# CONFIG_CANX2_GEAR_ECHO is not set' sdkconfig ;;
+            gear-echo) grep -qx 'CONFIG_CANX2_GEAR_ECHO=y' sdkconfig ;;
+            synthetic) grep -qx 'CONFIG_CANX2_MODE_SYNTHETIC=y' sdkconfig ;;
+          esac
           idf.py build

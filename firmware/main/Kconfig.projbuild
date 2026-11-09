@@ -3,10 +3,25 @@ menu "ESP32-CAN-X2 diagnostics"
         prompt "CAN diagnostic source"
         default CANX2_MODE_LIVE
         config CANX2_MODE_LIVE
-            bool "Passive physical CAN1 (listen-only)"
+            bool "Physical CAN1 (normal mode with hardware ACK)"
         config CANX2_MODE_SYNTHETIC
             bool "Software-generated Haltech test frames (CAN1 disabled)"
     endchoice
+
+    config CANX2_GEAR_ECHO
+        bool "Transmit the 0x650 GearEcho diagnostic at 5 Hz"
+        depends on CANX2_MODE_LIVE
+        default n
+
+    config CANX2_SPEED_SCALE_NUMERATOR
+        int "Vehicle speed scale numerator (km/h)"
+        range 1 1000000
+        default 1
+
+    config CANX2_SPEED_SCALE_DENOMINATOR
+        int "Vehicle speed scale denominator (km/h)"
+        range 1 1000000
+        default 10
 
     config CANX2_RAW_LOG
         bool "Print every physical CAN frame (high log volume)"

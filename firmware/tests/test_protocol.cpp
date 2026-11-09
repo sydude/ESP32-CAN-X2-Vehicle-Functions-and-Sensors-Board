@@ -13,6 +13,45 @@ static Frame test_frame(uint32_t id, const uint8_t (&bytes)[8]) {
     return frame;
 }
 
+static void test_gear_echo() {
+    GearEcho echo;
+    Frame output;
+    assert(!echo.next_frame(0, output));
+
+    const uint8_t reverse_in_drive[8] = {0, 0, 0, 0, 0, 0, 0xFC, 0xFF};
+    Frame source = test_frame(0x470, reverse_in_drive);
+    Decoded decoded;
+    assert(decode(source, decoded) == DecodeStatus::Ok);
+    assert(decoded.kind == Kind::GearSeparate && decoded.selector == -4 && decoded.gear == -1);
+    source.timestamp_us = 100000;
+    source.synthetic = true;
+    echo.observe(source, decoded.gear);
+    assert(!echo.next_frame(100000, output));
+    source.synthetic = false;
+    echo.observe(source, decoded.gear);
+    assert(!echo.next_frame(99999, output));
+    assert(echo.next_frame(100000, output));
+    assert(output.id == 0x650 && output.len == 8 && !output.extended && !output.remote);
+    assert(output.data[0] == 0xFF);
+    for (unsigned i = 1; i < 8; ++i) assert(output.data[i] == 0);
+
+    source.timestamp_us = 250000;
+    echo.observe(source, 0);
+    assert(!echo.next_frame(299999, output));
+    assert(echo.next_frame(300000, output) && output.data[0] == 0);
+    assert(!echo.next_frame(500000, output)); // The sample expired in the RX queue.
+
+    source.timestamp_us = 500000;
+    echo.observe(source, 10);
+    echo.observe(source, -3); // An explicit Unknown invalidates the prior sample.
+    assert(!echo.next_frame(500000, output));
+    echo.observe(source, 11);
+    assert(!echo.next_frame(500000, output));
+    echo.observe(source, 10);
+    assert(!echo.next_frame(690000, output)); // Too old to allow a full TX window.
+    assert(echo.next_frame(689999, output) && output.data[0] == 10);
+}
+
 int main() {
     Decoded d = {};
     const uint8_t trims[]   = {0, 0, 0, 0, 3, 0xFE, 7, 0};
@@ -24,7 +63,7 @@ int main() {
     assert(decode(test_frame(0x3E4, trims), d) == DecodeStatus::Ok);
     assert(d.kind == Kind::Trims && d.trim[0] == 3 && d.trim[1] == -2 && d.trim[2] == 7);
     assert(decode(test_frame(0x370, speed), d) == DecodeStatus::Ok);
-    assert(d.kind == Kind::SpeedCombined && d.speed_tenths_kmh == 345);
+    assert(d.kind == Kind::SpeedCombined && d.speed_raw == 345);
     assert(d.selector == 3 && d.gear == 3);
     assert(decode(test_frame(0x470, gears), d) == DecodeStatus::Ok);
     assert(d.selector == 3 && d.gear == 3);
@@ -43,7 +82,11 @@ int main() {
     bad = test_frame(0x470, gears);
     bad.extended = true;
     assert(decode(bad, d) == DecodeStatus::NotStandardData);
+    bad.extended = false;
+    bad.remote = true;
+    assert(decode(bad, d) == DecodeStatus::NotStandardData);
     assert(decode(test_frame(0x123, gears), d) == DecodeStatus::UnknownId);
     assert(gear_name(-8) && gear_name(10));
-    std::cout << "Haltech decoder test vectors: PASS\n";
+    test_gear_echo();
+    std::cout << "Haltech decoder and GearEcho test vectors: PASS\n";
 }

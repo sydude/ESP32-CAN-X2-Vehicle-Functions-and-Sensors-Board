@@ -11,7 +11,7 @@ Using an ESP-IDF 6.1 shell:
 3. idf.py build
 4. idf.py -p YOUR_SERIAL_PORT flash monitor
 
-Serial logging defaults to 115200 baud. Set the serial port appropriate to your Mac. USB/programming connections and power depend on board revision; follow the [vendor manual](https://wiki.autosportlabs.com/ESP32-CAN-X2).
+Defaults are 8 MB flash and 115200 baud serial logging. For an existing build, check flash size and the CAN diagnostic source in `idf.py menuconfig` because a saved `sdkconfig` can override the defaults. USB/programming connections and power depend on board revision. See the [vendor manual](https://wiki.autosportlabs.com/ESP32-CAN-X2).
 
 For a hardware-free decoder check:
 
@@ -19,9 +19,12 @@ For a hardware-free decoder check:
 
 ## Operational modes
 
-- **Default / passive CAN1:** receive-only, classical CAN at **1 Mbit/s**, GPIO6 RX and GPIO7 TX, never transmits or acknowledges.
-- **Synthetic:** select with idf.py menuconfig > ESP32-CAN-X2 diagnostics > CAN diagnostic source > Software-generated. No CAN controller is initialized; predefined messages are fed through the normal decoder/reporting path. Rebuild/reflash after changing the option.
-- **Raw logging:** separately opt in through menuconfig. Defaults off to avoid noisy console output. Physical CAN reception is unfiltered; app only decodes three selected IDs.
+- **Receive-only (default).** CAN1 runs in TWAI normal mode on GPIO6 RX and GPIO7 TX at **1 Mbit/s**. The controller ACKs valid CAN frames in hardware. Application frame transmission is disabled.
+- **Receive plus GearEcho.** In `idf.py menuconfig` under **ESP32-CAN-X2 diagnostics**, select the physical CAN1 source and enable **Transmit the 0x650 GearEcho diagnostic at 5 Hz**.
+- **Synthetic.** Select **Software-generated** under **CAN diagnostic source**. The monitor decodes predefined messages with the CAN controller disabled.
+- **Raw logging.** An independent menuconfig option logs complete frame data. The monitor decodes three selected IDs from unfiltered CAN1 reception.
+
+Mode and scaling settings take effect when the firmware is rebuilt and flashed.
 
 Synthetic mode is for application decoding and output behavior only; it does **not** validate CAN1 hardware, transceiver, wiring, or reception. Host decoder tests cover malformed frames and signed values. Flashing and actual CAN receipt must be checked on the user's physical board.
 
@@ -32,7 +35,7 @@ All multi-byte values use big-endian byte order; 11-bit standard IDs.
 | CAN ID | Rate | Bytes | Channel |
 |---|---|---|---|
 | 0x3E4 | 5 Hz | 4, 5, 6 | Rotary Trim Pot 1, 2, 3: signed int8, raw |
-| 0x370 | 20 Hz | 0–1 | Vehicle speed: unsigned int16 / 10 = km/h |
+| 0x370 | 20 Hz | 0–1 | Vehicle speed, raw unsigned 16-bit value with configurable scaling |
 | 0x370 | 20 Hz | 2–3 | Combined Gear: signed int8 selector (byte 2) and signed int8 actual gear (byte 3) |
 | 0x470 | 20 Hz | 6, 7 | Gear Selector Position and Gear: separate signed int8 enumerations |
 
@@ -40,7 +43,15 @@ Gear enumeration: 1–10 = forward gear; 0 = Neutral; -1 = Reverse; -2 = Park; -
 
 **Important:** selector position and actual gear are two different channels; never assert that they must equal each other. Compare the **selector in 0x370** to the **selector in 0x470**, and likewise compare the gear in 0x370 to gear in 0x470. The monitor flags only discrepancies persisting at least 300 ms, with both frames recently received, to avoid false alerts during shifting or differing frame arrival times.
 
-The program prints trim and gear changes; vehicle speed only when changed and at most 1 Hz; receive counters and CAN status every 5 seconds. After a previously seen gear ID has been absent over 250 ms, or rotary trims over 650 ms, it warns at summary time. Haltech's listed broadcast frequencies are nominal, not guaranteed.
+The program logs trim and gear changes and reports changed speed at most once per second. It logs the raw speed and the scaled speed in km/h. Set **Vehicle speed scale numerator** and **Vehicle speed scale denominator** in menuconfig to match the Generic CAN speed channel. The calculation is raw × numerator ÷ denominator, with a default of 1 ÷ 10. Confirm the speed scaling and the packed `0x370` gear mapping against the configured channels in Haltech NSP.
+
+Every five seconds the monitor reports CAN status, receive and transmit error counters, and the counts for successful completions, failed completions, rejected submissions, completion timeouts, and bus-off events. It also warns if a previously seen gear ID has been absent over 250 ms or rotary trims over 650 ms.
+
+## GearEcho
+
+On the Haltech Generic CAN receive channel, configure standard ID `0x650`, signed 8-bit at byte 0, with raw units and identity scaling. The ESP32 sends eight-byte data frames at up to 5 Hz. Byte 0 echoes the latest actual gear from byte 7 of a valid standard eight-byte `0x470` data frame. Bytes 1–7 are zero.
+
+The transmitter skips unknown and out-of-range gear codes and uses the receive timestamp to enforce a 250 ms freshness limit with time reserved for TX completion. An echo gets one hardware attempt. A failed completion or rejected submission pauses echoing for one second. After bus-off or a TX completion timeout, correct the bus fault and restart the board. A restart discards any pending frame.
 
 ## Synthetic vectors
 
@@ -56,12 +67,12 @@ The program prints trim and gear changes; vehicle speed only when changed and at
 - Confirm **board revision** and pinout before making a cable: Autosport Labs documents different top connector arrangements across versions.
 - Use CAN1-H, CAN1-L, and a suitable signal-ground reference. The top connector may also carry **vehicle power**; do not accidentally attach power pins to signal lines.
 - Autosport Labs states its termination is **enabled by default**, via physical TERM pads; a CAN bus needs only two 120 Ω terminations, at its physical ends. Verify the existing vehicle terminations before tapping in. Never add a third 120 Ω resistor to a properly terminated bus.
-- A listen-only CAN interface will not send ACKs. An isolated ECU plus listen-only receiver might fail to deliver complete acknowledged frames; a bench transmitter needs another active acknowledging node.
+- Connect Haltech CAN Bus 2 to the ESP32 board's CAN1. An active receiver must ACK the ESP32's GearEcho frames.
 - Keep the Haltech disconnected while flashing and running synthetic software tests. Introduce the live ECU only after board programming and appropriate CAN wiring/termination are verified.
 
 ## Future stages
 
-CAN2: MCP2515, CS GPIO10, MOSI GPIO11, SCK GPIO12, MISO GPIO13, interrupt GPIO3, 16 MHz crystal (not yet driven). P4 communications, sensor acquisition, and Haltech GCAN *transmission* are deliberately not implemented.
+P4 communications and sensor acquisition are future stages. CAN2/MCP2515 is unused.
 
 ## Sources
 
