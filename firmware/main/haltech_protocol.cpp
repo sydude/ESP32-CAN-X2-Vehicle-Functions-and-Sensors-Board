@@ -3,7 +3,7 @@
 namespace haltech {
 
 bool is_target_id(uint32_t id) {
-    return id == 0x3E4 || id == 0x370 || id == 0x470;
+    return id == 0x3E4 || id == 0x370 || id == 0x470 || id == 0x471;
 }
 
 DecodeStatus decode(const Frame& frame, Decoded& out) {
@@ -15,13 +15,15 @@ DecodeStatus decode(const Frame& frame, Decoded& out) {
         out.kind = Kind::Trims;
         for (int i = 0; i < 3; ++i) out.trim[i] = static_cast<int8_t>(frame.data[4 + i]);
     } else if (frame.id == 0x370) {
-        // Custom Generic CAN sends APP position here, NOT native broadcast vehicle speed.
-        out.kind = Kind::PedalCombined;
-        out.pedal_raw = static_cast<uint16_t>(
-            (static_cast<uint16_t>(frame.data[0]) << 8) | frame.data[1]);
-        // "Combined Gear" is a packed selector and gear, not a third sensor.
+        // Custom Generic CAN: packed combined gear, bytes 2-3.
+        out.kind = Kind::CombinedGear;
         out.selector = static_cast<int8_t>(frame.data[2]);
         out.gear = static_cast<int8_t>(frame.data[3]);
+    } else if (frame.id == 0x471) {
+        // Separate APP field following Haltech broadcast byte positions.
+        out.kind = Kind::Pedal;
+        out.pedal_raw = static_cast<uint16_t>(
+            (static_cast<uint16_t>(frame.data[2]) << 8) | frame.data[3]);
     } else {
         out.kind = Kind::GearSeparate;
         out.selector = static_cast<int8_t>(frame.data[6]);

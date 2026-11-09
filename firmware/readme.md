@@ -28,22 +28,22 @@ Changes in menuconfig take effect when the firmware is rebuilt and flashed. The 
 
 Synthetic mode is for application decoding and output behavior only; it does **not** validate CAN1 hardware, transceiver, wiring, or reception. Host decoder tests cover malformed frames and signed values. Flashing and actual CAN receipt must be checked on the user's physical board.
 
-## Initial custom Haltech Generic CAN messages (based partly on Broadcast v2.0 layouts)
+## Initial custom Haltech Generic CAN messages (using selected Broadcast v2.0 layouts)
 
-All multi-byte values use big-endian byte order; 11-bit standard IDs. **This is a custom Generic CAN stream on Haltech CAN Bus 2**, not the native ECU Broadcast Protocol. Specifically, custom `0x370` sends accelerator pedal position in place of the published broadcast protocol's vehicle speed; do not decode it using the standard `0x370` definition.
+All multi-byte values use big-endian byte order; 11-bit standard IDs. **This is a custom Generic CAN stream on Haltech CAN Bus 2**, not the native ECU Broadcast Protocol. The custom `0x370` frame carries **only Combined Gear** in bytes 2-3 (bytes 0-1 unused). Pedal position uses separate `0x471` bytes 2-3, following published broadcast positions but with a user-selected test refresh rate.
 
 | CAN ID | Rate | Bytes | Channel |
 |---|---|---|---|
 | 0x3E4 | 5 Hz | 4, 5, 6 | Rotary Trim Pot 1, 2, 3: signed int8, raw |
-| 0x370 | 20 Hz | 0–1 | Accelerator Pedal Position (APP), raw unsigned 16-bit value scaled to percent |
-| 0x370 | 20 Hz | 2–3 | Combined Gear: signed int8 selector (byte 2) and signed int8 actual gear (byte 3) |
+| 0x370 | 20 Hz | 2–3 | Combined Gear: signed int8 selector (byte 2) and signed int8 actual gear (byte 3); bytes 0-1 unused |
+| 0x471 | 5 Hz | 2–3 | Accelerator Pedal Position (APP), unsigned 16-bit big-endian, raw ÷ 10 = percent (default) |
 | 0x470 | 20 Hz | 6, 7 | Gear Selector Position and Gear: separate signed int8 enumerations |
 
 Gear enumeration: 1–10 = forward gear; 0 = Neutral; -1 = Reverse; -2 = Park; -3 = Unknown; -4 = Drive; -5 = Sport; -6 = Manual; -7 = Low; -8 = Overdrive.
 
 **Important:** selector position and actual gear are two different channels; never assert that they must equal each other. Compare the **selector in 0x370** to the **selector in 0x470**, and likewise compare the gear in 0x370 to gear in 0x470. The monitor flags only discrepancies persisting at least 300 ms, with both frames recently received, to avoid false alerts during shifting or differing frame arrival times.
 
-The program logs trim and gear changes and reports changed **accelerator pedal position** at most once per second. It logs raw APP and the scaled percentage. Set **Accelerator pedal (APP) percent scale numerator** and **Accelerator pedal (APP) percent scale denominator** in menuconfig to match the Generic CAN APP field. Calculation: raw × numerator ÷ denominator; default 1 ÷ 10 (raw 345 → 34.5%). This assumes NSP transmits tenths of a percent; compare raw CAN bytes with the NSP engineering value to verify the actual divisor. The APP signal is pedal position, not throttle position.
+The program logs trim and gear changes and reports changed **accelerator pedal position from `0x471`** at most once per second. It logs raw APP and the scaled percentage. Set **Accelerator pedal (APP) percent scale numerator** and **Accelerator pedal (APP) percent scale denominator** in menuconfig to match the Generic CAN APP field. Calculation: raw × numerator ÷ denominator; default 1 ÷ 10 (raw 345 → 34.5%). This assumes NSP transmits tenths of a percent; compare raw CAN bytes with the NSP engineering value to verify the actual divisor. The APP signal is pedal position, not throttle position.
 
 Every five seconds the monitor reports CAN status, receive and transmit error counters, and the counts for successful completions, failed completions, rejected submissions, completion timeouts, and bus-off events. It also warns if a previously seen gear ID has been absent over 250 ms or rotary trims over 650 ms.
 
@@ -56,16 +56,18 @@ The transmitter skips unknown and out-of-range gear codes and uses the receive t
 ## Synthetic vectors
 
 - 0x3E4: 00 00 00 00 03 FE 07 00 -> trims +3, -2, +7
-- 0x370: 01 59 03 03 00 00 00 00 -> accelerator pedal 34.5% (assuming x10), selector 3, gear 3
+- 0x370: 00 00 03 03 00 00 00 00 -> selector 3, gear 3
+- 0x471: 00 00 01 59 00 00 00 00 -> accelerator pedal 34.5% (assuming x10)
 - 0x470: 03 E8 03 E8 03 E8 03 03 -> selector 3, gear 3
 - 0x470: 03 E8 03 E8 03 E8 00 00 -> Neutral, Neutral
 - 0x470: 03 E8 03 E8 03 E8 FF FF -> Reverse, Reverse
-- 0x370: 01 59 FC 03 00 00 00 00 and 0x470: 03 E8 03 E8 03 E8 FC 03 -> Drive (-4) selector / actual 3rd gear, deliberately different **but consistent across CAN IDs**.
+- 0x370: 00 00 FC 03 00 00 00 00 and 0x470: 03 E8 03 E8 03 E8 FC 03 -> Drive (-4) selector / actual 3rd gear, deliberately different **but consistent across CAN IDs**.
 
 ## Stationary accelerator-pedal (APP) bench test
 
-- Edit the first signal in NSP Generic CAN **Transmit Frame `0x370`**: select **Accelerator Pedal Position (APP)**, **not Throttle Position (TPS)**. Keep standard 11-bit ID, 8 bytes, 20 Hz, big-endian unsigned 16-bit at start bit 7 (bytes 0–1), offset 0; retain Combined Gear in bytes 2–3.
-- Select units **percent (%)**. Use transmit divisor `0.10` if NSP applies engineering value ÷ divisor as expected; we have not verified the formula. Check raw received bytes against NSP APP reading before relying on the scaled percentage. Keep `0x3E4`, `0x470` and GearEcho `0x650` unchanged.
+- Keep NSP Generic CAN **Transmit Frame `0x370`** at 20 Hz with **Combined Gear** in bytes 2-3 only; remove any APP source from bytes 0-1.
+- Add **Transmit Frame `0x471`** using **Accelerator Pedal Position (APP)**, **not Throttle Position (TPS)**. Select standard 11-bit ID, 8-byte frame, **5 Hz for stationary testing**, big-endian unsigned 16-bit at **Motorola start bit 23 (bytes 2-3)**, offset 0. Other bytes may be unused.
+- Set percent (%) units and transmit divisor `0.10` if NSP performs engineering-value ÷ divisor; this transmit-side formula is not yet verified. Compare raw CAN bytes against NSP APP readings before trusting scaled percentages. Keep `0x3E4`, `0x470` and GearEcho `0x650` unchanged.
 - Test only with the vehicle securely parked, parking brake engaged, and **engine off**. With ignition on, the DBW throttle may move as the pedal is pressed; keep clear of moving parts. Do not perform the test while driving.
 
 ## CAN1 wiring and safety
