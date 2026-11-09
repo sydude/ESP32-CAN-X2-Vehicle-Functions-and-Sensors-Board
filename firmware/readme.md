@@ -11,7 +11,7 @@ Using an ESP-IDF 6.1 shell:
 3. idf.py build
 4. idf.py -p YOUR_SERIAL_PORT flash monitor
 
-Defaults are 8 MB flash and 115200 baud serial logging. For an existing build, check flash size and the CAN diagnostic source in `idf.py menuconfig` because a saved `sdkconfig` can override the defaults. USB/programming connections and power depend on board revision. See the [vendor manual](https://wiki.autosportlabs.com/ESP32-CAN-X2).
+Defaults are 8 MB flash and USB Serial/JTAG as the **primary input/output console**, so `gear-echo on` can be entered through the same USB serial monitor used to flash the board. For an existing build, a saved local `sdkconfig` overrides `sdkconfig.defaults`: check **Component config → ESP System Settings → Channel for console output → USB Serial/JTAG Controller** in `idf.py menuconfig`, alongside the flash size and CAN diagnostic source. Secondary USB output alone cannot receive console commands. Use 115200 baud serial monitoring. USB/programming connections and power depend on board revision. See the [vendor manual](https://wiki.autosportlabs.com/ESP32-CAN-X2).
 
 For a hardware-free decoder check:
 
