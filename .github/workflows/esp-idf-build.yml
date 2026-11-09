@@ -36,6 +36,7 @@ jobs:
           esac
           idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;ci-mode.defaults' set-target esp32s3
           grep -qx 'CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y' sdkconfig
+          grep -qx 'CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y' sdkconfig
           case "${{ matrix.mode }}" in
             receive-only)
               grep -qx 'CONFIG_CANX2_MODE_LIVE=y' sdkconfig
