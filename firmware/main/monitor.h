@@ -3,5 +3,5 @@
 
 namespace monitor {
 void ingest(const haltech::Frame& frame);
-void poll();
+void poll(bool gear_echo_enabled);
 } // namespace monitor

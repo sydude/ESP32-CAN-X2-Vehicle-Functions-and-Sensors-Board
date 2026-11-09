@@ -12,7 +12,7 @@ uint64_t all_frames = 0;
 uint64_t targets = 0;
 uint32_t invalid = 0;
 int64_t last_summary_us = 0;
-int64_t last_speed_print_us = 0;
+int64_t last_pedal_print_us = 0;
 int64_t mismatch_since_us = 0;
 bool mismatch_logged = false;
 
@@ -26,9 +26,13 @@ State combined, separate;
 bool trims_seen = false;
 int64_t last_trims_us = 0;
 int8_t trims[3] = {};
-bool speed_seen = false;
-uint16_t latest_speed = 0;
-uint16_t printed_speed = 0;
+bool pedal_seen = false;
+int64_t last_pedal_rx_us = 0;
+uint16_t latest_pedal = 0;
+uint16_t printed_pedal = 0;
+#if CONFIG_CANX2_GEAR_ECHO
+haltech::GearEcho gear_echo;
+#endif
 
 void report_gear(const char* source, State& state, int8_t selector, int8_t gear, int64_t now) {
     bool changed = !state.seen || state.selector != selector || state.gear != gear;
@@ -91,29 +95,44 @@ void ingest(const haltech::Frame& frame) {
                 trims[0], trims[1], trims[2]);
             break;
         }
-        case haltech::Kind::SpeedCombined:
-            latest_speed = decoded.speed_tenths_kmh;
-            // Report first sample immediately; subsequently at most once per second,
-            // and only when the value differs from the last printed value.
-            if (!speed_seen || (latest_speed != printed_speed &&
-                now - last_speed_print_us >= 1000000)) {
-                ESP_LOGI(kTag, "Vehicle speed: %u.%u km/h",
-                    latest_speed / 10, latest_speed % 10);
-                printed_speed = latest_speed;
-                last_speed_print_us = now;
-            }
-            speed_seen = true;
+        case haltech::Kind::CombinedGear:
             report_gear("0x370 packed", combined, decoded.selector, decoded.gear, now);
             break;
+        case haltech::Kind::Pedal:
+            last_pedal_rx_us = now;
+            latest_pedal = decoded.pedal_raw;
+            // Report first APP sample immediately; subsequently at most once per second,
+            // and only when the value differs from the last printed value.
+            if (!pedal_seen || (latest_pedal != printed_pedal &&
+                now - last_pedal_print_us >= 1000000)) {
+                const double pedal_percent = static_cast<double>(latest_pedal) *
+                    CONFIG_CANX2_PEDAL_SCALE_NUMERATOR / CONFIG_CANX2_PEDAL_SCALE_DENOMINATOR;
+                ESP_LOGI(kTag, "Accelerator pedal (APP): raw=%u, scaled=%.3f %%",
+                    latest_pedal, pedal_percent);
+                printed_pedal = latest_pedal;
+                last_pedal_print_us = now;
+            }
+            pedal_seen = true;
+            break;
         case haltech::Kind::GearSeparate:
+#if CONFIG_CANX2_GEAR_ECHO
+            gear_echo.observe(frame, decoded.gear);
+#endif
             report_gear("0x470 separate", separate, decoded.selector, decoded.gear, now);
             break;
     }
     cross_check(now);
 }
 
-void poll() {
+void poll([[maybe_unused]] bool gear_echo_enabled) {
     const int64_t now = esp_timer_get_time();
+    can_capture::service(now);
+#if CONFIG_CANX2_GEAR_ECHO
+    haltech::Frame echo;
+    if (gear_echo_enabled && gear_echo.next_frame(now, echo)) {
+        can_capture::send_gear_echo(echo, now);
+    }
+#endif
     if (last_summary_us && now - last_summary_us < 5000000) return;
     last_summary_us = now;
     const auto stats = can_capture::stats();
@@ -124,7 +143,17 @@ void poll() {
         static_cast<unsigned long>(stats.dropped_queue),
         static_cast<unsigned long>(stats.bus_errors),
         stats.rx_error_counter, stats.error_state);
+    ESP_LOGI(kTag, "CAN1 TX ok=%lu failed=%lu rejected=%lu timeouts=%lu tx_err=%u bus_off=%lu",
+        static_cast<unsigned long>(stats.tx_ok),
+        static_cast<unsigned long>(stats.tx_failed),
+        static_cast<unsigned long>(stats.tx_rejected),
+        static_cast<unsigned long>(stats.tx_timeouts),
+        stats.tx_error_counter,
+        static_cast<unsigned long>(stats.bus_off_events));
 
+    if (pedal_seen && now - last_pedal_rx_us > 650000) {
+        ESP_LOGW(kTag, "No fresh 0x471 accelerator-pedal message for >650ms");
+    }
     if (trims_seen && now - last_trims_us > 650000) {
         ESP_LOGW(kTag, "No fresh 0x3E4 rotary-trim message for >650ms");
     }
