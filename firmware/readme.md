@@ -20,7 +20,7 @@ For a hardware-free decoder check:
 ## Operational modes
 
 - **Receive-only (default).** CAN1 runs in TWAI normal mode on GPIO6 RX and GPIO7 TX at **1 Mbit/s**. The controller ACKs valid CAN frames in hardware. Application frame transmission is disabled.
-- **Receive plus GearEcho.** In `idf.py menuconfig` under **ESP32-CAN-X2 diagnostics**, select the physical CAN1 source and enable **Allow serial control of the 0x650 GearEcho diagnostic**. Use UART or USB Serial/JTAG as the primary console. The firmware starts receive-only. Send `gear-echo on` followed by Enter to enable the echo and `gear-echo off` followed by Enter to stop new echoes. Reset also returns to receive-only.
+- **Receive plus GearEcho.** Serial control is enabled by default for physical CAN1 with UART or USB Serial/JTAG as the primary console. The firmware starts receive-only. Send `gear-echo on` followed by Enter to enable the echo and `gear-echo off` followed by Enter to stop new echoes. Reset also returns to receive-only. For a saved configuration that disabled serial control, enable **Allow serial control of the 0x650 GearEcho diagnostic** under **ESP32-CAN-X2 diagnostics** in `idf.py menuconfig` once.
 - **Synthetic.** Select **Software-generated** under **CAN diagnostic source**. The monitor decodes predefined messages with the CAN controller disabled.
 - **Raw logging.** An independent menuconfig option logs complete frame data. The monitor decodes three selected IDs from unfiltered CAN1 reception.
 

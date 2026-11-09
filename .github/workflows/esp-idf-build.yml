@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [receive-only, gear-echo, synthetic]
+        mode: [receive-only, default-serial-control, synthetic]
     runs-on: ubuntu-latest
     container: espressif/idf:v6.1
     steps:
@@ -30,8 +30,8 @@ jobs:
         run: |
           source /opt/esp/idf/export.sh
           case "${{ matrix.mode }}" in
-            receive-only) : > ci-mode.defaults ;;
-            gear-echo) printf '%s\n' 'CONFIG_CANX2_GEAR_ECHO=y' > ci-mode.defaults ;;
+            receive-only) printf '%s\n' '# CONFIG_CANX2_GEAR_ECHO is not set' > ci-mode.defaults ;;
+            default-serial-control) : > ci-mode.defaults ;;
             synthetic) printf '%s\n' '# CONFIG_CANX2_MODE_LIVE is not set' 'CONFIG_CANX2_MODE_SYNTHETIC=y' > ci-mode.defaults ;;
           esac
           idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;ci-mode.defaults' set-target esp32s3
@@ -40,7 +40,9 @@ jobs:
             receive-only)
               grep -qx 'CONFIG_CANX2_MODE_LIVE=y' sdkconfig
               grep -qx '# CONFIG_CANX2_GEAR_ECHO is not set' sdkconfig ;;
-            gear-echo) grep -qx 'CONFIG_CANX2_GEAR_ECHO=y' sdkconfig ;;
+            default-serial-control)
+              grep -qx 'CONFIG_CANX2_MODE_LIVE=y' sdkconfig
+              grep -qx 'CONFIG_CANX2_GEAR_ECHO=y' sdkconfig ;;
             synthetic) grep -qx 'CONFIG_CANX2_MODE_SYNTHETIC=y' sdkconfig ;;
           esac
           idf.py build
