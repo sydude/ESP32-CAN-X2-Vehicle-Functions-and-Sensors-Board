@@ -14,13 +14,13 @@ struct Frame {
     bool synthetic = false;
 };
 
-enum class Kind { Trims, SpeedCombined, GearSeparate };
+enum class Kind { Trims, PedalCombined, GearSeparate };
 enum class DecodeStatus { Ok, UnknownId, BadLength, NotStandardData };
 
 struct Decoded {
     Kind kind = Kind::Trims;
     int8_t trim[3] = {};
-    uint16_t speed_raw = 0;
+    uint16_t pedal_raw = 0; // 0x370 bytes 0-1, Generic CAN APP percent (raw U16)
     int8_t selector = 0;
     int8_t gear = 0;
 };

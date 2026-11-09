@@ -12,7 +12,7 @@ uint64_t all_frames = 0;
 uint64_t targets = 0;
 uint32_t invalid = 0;
 int64_t last_summary_us = 0;
-int64_t last_speed_print_us = 0;
+int64_t last_pedal_print_us = 0;
 int64_t mismatch_since_us = 0;
 bool mismatch_logged = false;
 
@@ -26,9 +26,9 @@ State combined, separate;
 bool trims_seen = false;
 int64_t last_trims_us = 0;
 int8_t trims[3] = {};
-bool speed_seen = false;
-uint16_t latest_speed = 0;
-uint16_t printed_speed = 0;
+bool pedal_seen = false;
+uint16_t latest_pedal = 0;
+uint16_t printed_pedal = 0;
 #if CONFIG_CANX2_GEAR_ECHO
 haltech::GearEcho gear_echo;
 #endif
@@ -94,20 +94,20 @@ void ingest(const haltech::Frame& frame) {
                 trims[0], trims[1], trims[2]);
             break;
         }
-        case haltech::Kind::SpeedCombined:
-            latest_speed = decoded.speed_raw;
-            // Report first sample immediately; subsequently at most once per second,
+        case haltech::Kind::PedalCombined:
+            latest_pedal = decoded.pedal_raw;
+            // Report first APP sample immediately; subsequently at most once per second,
             // and only when the value differs from the last printed value.
-            if (!speed_seen || (latest_speed != printed_speed &&
-                now - last_speed_print_us >= 1000000)) {
-                const double speed_kmh = static_cast<double>(latest_speed) *
-                    CONFIG_CANX2_SPEED_SCALE_NUMERATOR / CONFIG_CANX2_SPEED_SCALE_DENOMINATOR;
-                ESP_LOGI(kTag, "Vehicle speed: raw=%u, scaled=%.3f km/h",
-                    latest_speed, speed_kmh);
-                printed_speed = latest_speed;
-                last_speed_print_us = now;
+            if (!pedal_seen || (latest_pedal != printed_pedal &&
+                now - last_pedal_print_us >= 1000000)) {
+                const double pedal_percent = static_cast<double>(latest_pedal) *
+                    CONFIG_CANX2_PEDAL_SCALE_NUMERATOR / CONFIG_CANX2_PEDAL_SCALE_DENOMINATOR;
+                ESP_LOGI(kTag, "Accelerator pedal (APP): raw=%u, scaled=%.3f %%",
+                    latest_pedal, pedal_percent);
+                printed_pedal = latest_pedal;
+                last_pedal_print_us = now;
             }
-            speed_seen = true;
+            pedal_seen = true;
             report_gear("0x370 packed", combined, decoded.selector, decoded.gear, now);
             break;
         case haltech::Kind::GearSeparate:

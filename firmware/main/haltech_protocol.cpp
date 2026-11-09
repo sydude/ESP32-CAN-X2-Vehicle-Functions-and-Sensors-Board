@@ -15,8 +15,9 @@ DecodeStatus decode(const Frame& frame, Decoded& out) {
         out.kind = Kind::Trims;
         for (int i = 0; i < 3; ++i) out.trim[i] = static_cast<int8_t>(frame.data[4 + i]);
     } else if (frame.id == 0x370) {
-        out.kind = Kind::SpeedCombined;
-        out.speed_raw = static_cast<uint16_t>(
+        // Custom Generic CAN sends APP position here, NOT native broadcast vehicle speed.
+        out.kind = Kind::PedalCombined;
+        out.pedal_raw = static_cast<uint16_t>(
             (static_cast<uint16_t>(frame.data[0]) << 8) | frame.data[1]);
         // "Combined Gear" is a packed selector and gear, not a third sensor.
         out.selector = static_cast<int8_t>(frame.data[2]);

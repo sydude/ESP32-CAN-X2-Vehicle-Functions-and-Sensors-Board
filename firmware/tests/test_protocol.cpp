@@ -55,16 +55,19 @@ static void test_gear_echo() {
 int main() {
     Decoded d = {};
     const uint8_t trims[]   = {0, 0, 0, 0, 3, 0xFE, 7, 0};
-    const uint8_t speed[]   = {0x01, 0x59, 3, 3, 0, 0, 0, 0};
+    const uint8_t pedal[]   = {0x01, 0x59, 3, 3, 0, 0, 0, 0}; // 345 = 34.5% at x10
     const uint8_t gears[]   = {0x03, 0xE8, 0x03, 0xE8, 0x03, 0xE8, 3, 3};
     const uint8_t neutral[] = {0, 0, 0, 0, 0, 0, 0, 0};
     const uint8_t reverse[] = {0, 0, 0, 0, 0, 0, 0xFF, 0xFF};
     const uint8_t drive[]   = {0, 0, 0xFC, 3, 0, 0, 0, 0};
     assert(decode(test_frame(0x3E4, trims), d) == DecodeStatus::Ok);
     assert(d.kind == Kind::Trims && d.trim[0] == 3 && d.trim[1] == -2 && d.trim[2] == 7);
-    assert(decode(test_frame(0x370, speed), d) == DecodeStatus::Ok);
-    assert(d.kind == Kind::SpeedCombined && d.speed_raw == 345);
+    assert(decode(test_frame(0x370, pedal), d) == DecodeStatus::Ok);
+    assert(d.kind == Kind::PedalCombined && d.pedal_raw == 345);
     assert(d.selector == 3 && d.gear == 3);
+    const uint8_t app_full[] = {0x03, 0xE8, 3, 3, 0, 0, 0, 0}; // 100.0% APP
+    assert(decode(test_frame(0x370, app_full), d) == DecodeStatus::Ok);
+    assert(d.kind == Kind::PedalCombined && d.pedal_raw == 1000);
     assert(decode(test_frame(0x470, gears), d) == DecodeStatus::Ok);
     assert(d.selector == 3 && d.gear == 3);
     assert(decode(test_frame(0x470, neutral), d) == DecodeStatus::Ok);

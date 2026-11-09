@@ -54,15 +54,15 @@ void inject(uint32_t id, const uint8_t (&bytes)[8]) {
 void run_synthetic() {
     ESP_LOGW(kTag, "SYNTHETIC TEST MODE: hardware CAN1 is NOT initialized");
     const uint8_t trims[8]   = {0, 0, 0, 0, 3, 0xFE, 7, 0};
-    const uint8_t drive[8]   = {0x01, 0x59, 3, 3, 0, 0, 0, 0};
+    const uint8_t pedal_gear[8] = {0x01, 0x59, 3, 3, 0, 0, 0, 0}; // APP 34.5% at x10
     const uint8_t gear3[8]   = {0x03, 0xE8, 0x03, 0xE8, 0x03, 0xE8, 3, 3};
     const uint8_t neutral[8] = {0x03, 0xE8, 0x03, 0xE8, 0x03, 0xE8, 0, 0};
     const uint8_t reverse[8] = {0x03, 0xE8, 0x03, 0xE8, 0x03, 0xE8, 0xFF, 0xFF};
-    const uint8_t selector_drive[8] = {0x01, 0x59, 0xFC, 3, 0, 0, 0, 0};
+    const uint8_t selector_drive[8] = {0x01, 0x59, 0xFC, 3, 0, 0, 0, 0}; // APP 34.5%, selector Drive
     const uint8_t gear_selector_drive[8] = {0x03, 0xE8, 0x03, 0xE8, 0x03, 0xE8, 0xFC, 3};
 
     inject(0x3E4, trims);
-    inject(0x370, drive);
+    inject(0x370, pedal_gear);
     inject(0x470, gear3);
     vTaskDelay(pdMS_TO_TICKS(350));
     inject(0x470, neutral);

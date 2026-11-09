@@ -5,8 +5,8 @@ Firmware for an **Autosport Labs ESP32-CAN-X2 (ESP32-S3)** operating as the vehi
 ## Current scope
 
 - CAN1 uses native ESP32-S3 TWAI in normal mode at **1,000,000 bit/s** with hardware ACK. The default receives Haltech frames. GearEcho on `0x650` is opt-in.
-- Initial Haltech ECU Broadcast Protocol v2.0 decoding: 0x3E4 (rotary trims 1–3), 0x370 (vehicle speed and packed combined gear), 0x470 (gear selector position and gear).
-- Change-only rotary/gear logs; rate-limited speed logs; 5-second reception/error summaries.
+- Initial custom Haltech Generic CAN decoding, borrowing some Broadcast v2.0 layouts: 0x3E4 (rotary trims 1–3), 0x370 (**accelerator pedal position**, not TPS, and packed combined gear), 0x470 (gear selector position and gear).
+- Change-only rotary/gear logs; rate-limited accelerator-pedal logs; 5-second reception/error summaries.
 - Opt-in synthetic decoder diagnostics which **do not initialize or transmit onto CAN**.
 - CAN2/MCP2515 is unused. Sensor acquisition and S3–P4 communication are future work.
 

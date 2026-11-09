@@ -17,13 +17,13 @@ menu "ESP32-CAN-X2 diagnostics"
             Start receive-only and accept "gear-echo on" and "gear-echo off"
             on the primary serial console. When enabled, echo at up to 5 Hz.
 
-    config CANX2_SPEED_SCALE_NUMERATOR
-        int "Vehicle speed scale numerator (km/h)"
+    config CANX2_PEDAL_SCALE_NUMERATOR
+        int "Accelerator pedal (APP) percent scale numerator"
         range 1 1000000
         default 1
 
-    config CANX2_SPEED_SCALE_DENOMINATOR
-        int "Vehicle speed scale denominator (km/h)"
+    config CANX2_PEDAL_SCALE_DENOMINATOR
+        int "Accelerator pedal (APP) percent scale denominator"
         range 1 1000000
         default 10
 
