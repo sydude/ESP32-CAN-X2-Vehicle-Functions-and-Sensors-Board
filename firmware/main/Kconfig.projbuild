@@ -9,9 +9,13 @@ menu "ESP32-CAN-X2 diagnostics"
     endchoice
 
     config CANX2_GEAR_ECHO
-        bool "Transmit the 0x650 GearEcho diagnostic at 5 Hz"
+        bool "Allow serial control of the 0x650 GearEcho diagnostic"
         depends on CANX2_MODE_LIVE
+        depends on ESP_CONSOLE_UART_DEFAULT || ESP_CONSOLE_UART_CUSTOM || ESP_CONSOLE_USB_SERIAL_JTAG
         default n
+        help
+            Start receive-only and accept "gear-echo on" and "gear-echo off"
+            on the primary serial console. When enabled, echo at up to 5 Hz.
 
     config CANX2_SPEED_SCALE_NUMERATOR
         int "Vehicle speed scale numerator (km/h)"

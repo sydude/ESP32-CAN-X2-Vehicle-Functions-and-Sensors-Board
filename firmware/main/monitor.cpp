@@ -120,12 +120,14 @@ void ingest(const haltech::Frame& frame) {
     cross_check(now);
 }
 
-void poll() {
+void poll([[maybe_unused]] bool gear_echo_enabled) {
     const int64_t now = esp_timer_get_time();
     can_capture::service(now);
 #if CONFIG_CANX2_GEAR_ECHO
     haltech::Frame echo;
-    if (gear_echo.next_frame(now, echo)) can_capture::send_gear_echo(echo, now);
+    if (gear_echo_enabled && gear_echo.next_frame(now, echo)) {
+        can_capture::send_gear_echo(echo, now);
+    }
 #endif
     if (last_summary_us && now - last_summary_us < 5000000) return;
     last_summary_us = now;
